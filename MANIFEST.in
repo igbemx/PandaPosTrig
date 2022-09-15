@@ -1,9 +1,4 @@
-recursive-include PandaPosTrig *.py
-recursive-include test *.py
-include *.rst
-include PandaPosTrig.xmi
-include *.txt
-graft docs
-
-global-exclude *.pyc
-global-exclude *.pyo
+# setuptools-scm automatically adds all files managed by git
+# Remove the tests directory
+prune tests
+prune test
