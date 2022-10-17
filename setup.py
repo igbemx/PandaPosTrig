@@ -11,5 +11,5 @@ setup(
     url="https://gitlab.maxiv.lu.se/softimax/tangods-softimax-pandapostrig",
     packages=find_packages(exclude=["tests", "*.tests.*", "tests.*", "tests"]),
     include_package_data=True,
-    entry_points={"console_scripts": ["PandaPosTrig = PandaPosTrig:main",]},
+    entry_points={"console_scripts": ["PandaPosTrig = PandaPosTrig.PandaPosTrig:main",]},
 )
