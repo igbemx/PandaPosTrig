@@ -32,17 +32,17 @@ ____________________________________________________________________________
 
 The PandaPosTrig device requires the following property:
 
-Property | Purpose | Default value
+| Property       | Purpose                 | Default value        |
 
--------------- | --------- | -------
+|:-------------- |:------------------------|:-------------------- |
 
-PandaHost | PandABox hostname or IP | "b-softimax-panda-0"
-PandaPort | PandABox control port | 8888
-AbsXSign | Sign of the X-axis | -1
-AbsYSign | Sign of the Y-axis | 1
+| PandaHost      | PandABox hostname or IP | "b-softimax-panda-0" |
 
+| PandaPort      | PandABox control port   | 8888                 |
 
+| AbsXSign       | Sign of the X-axis      | -1                   |
 
+| AbsYSign       | Sign of the Y-axis      | 1                    |
 
 ____________________________________________________________________________
 
@@ -50,22 +50,22 @@ ____________________________________________________________________________
 
 The PandaPosTrig device expose the following attributes:
 
-Attribute | Type | R/W| Unit | Purpose
+|   Attribute  |    Type   |  R/W | Unit | Purpose                                      |
 
--------------- | ----- | ---- | ---- | ---------
+|:------------ |:----------|:---- |:---- |:-------------------------------------------- |
 
-AbsX | DevDouble | R/W | µm | Absolute sample X position
+| AbsX         | DevDouble | R/W  | µm   | Absolute sample X position                   |
 
-AbsY | DevDouble | R/W | µm  | Absolute sample Y position
+| AbsY         | DevDouble | R/W  | µm   | Absolute sample Y position                   |
 
-AbsXOffset | DevDouble | R/W | µm  | Sample X position offset
+| AbsXOffset   | DevDouble | R/W  | µm   | Sample X position offset                     |
 
-AbsXOffset | DevDouble | R/W | µm  | Sample X position offset
+| AbsXOffset   | DevDouble | R/W  | µm   | Sample X position offset                     |
 
-TrigAxis | TrigAxis | R/W | | Selection of the axis for triggering 
+| TrigAxis     | TrigAxis  | R/W  |      | Selection of the axis for triggering         |
 
-TrigXPos | DevDouble | R/W | µm | Position for the X axis triggering
+| TrigXPos     | DevDouble | R/W  | µm   | Position for the X axis triggering           |
 
-TrigYPos | DevDouble | R/W | µm | Position for the Y axis triggering
+| TrigYPos     | DevDouble | R/W  | µm   | Position for the Y axis triggering           |
 
-TrigState | DevString | R/W | µm | Status of the PandABox concerning triggering
+| TrigState    | DevString | R/W  | µm   | Status of the PandABox concerning triggering |
