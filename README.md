@@ -43,7 +43,7 @@ ____________________________________________________________________________
 
 ##### Attributes used for time-based triggering
 
-The PandaPosTrig device expose the following attributes:
+The PandaPosTrig device exposes the following attributes:
 
 |   Attribute  |    Type   |  R/W | Unit | Purpose                                      |
 |:------------ |:----------|:---- |:---- |:-------------------------------------------- |
@@ -60,7 +60,7 @@ ____________________________________________________________________________
 
 ##### Commands
 
-The PandaPosTrig device expose the following commands:
+The PandaPosTrig device exposes the following commands:
 
 | Command        | Action                                                               |
 | ---------------| -------------------------------------------------------------------- |
@@ -69,6 +69,7 @@ The PandaPosTrig device expose the following commands:
 | Disarm         | Disarm the PCAP block                                                |
 | SetXTrigToCurr | Set TrigXPos to the current absolute position value                  |
 | SetYTrigToCurr | Set TrigYPos to the current absolute position value                  |
+| ZeroAbs        | Sets absolute positions to zero by reseting increm. enc. block       |
 
 
 ____________________________________________________________________________
@@ -76,3 +77,7 @@ ____________________________________________________________________________
 ##### State Machine
 
 The PandaPosTrig device has the following states:
+| State          | Event                                                                      |
+| ---------------| -------------------------------------------------------------------------- |
+| ON             | The device is On and can be prepared for triggering                        |
+| FAULT          | The device has failed to execute the last command or communication is lost |
