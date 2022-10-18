@@ -41,7 +41,7 @@ The PandaPosTrig device requires the following property:
 
 ____________________________________________________________________________
 
-##### Attributes
+##### Attributes used for time-based triggering
 
 The PandaPosTrig device expose the following attributes:
 
@@ -54,4 +54,25 @@ The PandaPosTrig device expose the following attributes:
 | TrigAxis     | TrigAxis  | R/W  |      | Selection of the axis for triggering         |
 | TrigXPos     | DevDouble | R/W  | µm   | Position for the X axis triggering           |
 | TrigYPos     | DevDouble | R/W  | µm   | Position for the Y axis triggering           |
-| TrigState    | DevString | R/W  | µm   | Status of the PandABox concerning triggering |
+| TrigState    | DevString |  R   | µm   | Status of the PandABox concerning triggering |
+
+____________________________________________________________________________
+
+##### Commands
+
+The PandaPosTrig device expose the following commands:
+
+| Command        | Action                                                               |
+| ---------------| -------------------------------------------------------------------- |
+| Init           | Re-initialize the device                                             |
+| ArmSingle      | Prepare PCAP block according to the given TrigXPos or TrigYPos value |
+| Disarm         | Disarm the PCAP block                                                |
+| SetXTrigToCurr | Set TrigXPos to the current absolute position value                  |
+| SetYTrigToCurr | Set TrigYPos to the current absolute position value                  |
+
+
+____________________________________________________________________________
+
+##### State Machine
+
+The PandaPosTrig device has the following states:
