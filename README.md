@@ -24,7 +24,7 @@ This tango device interacts with the PandABox at SoftiMAX and provides position-
 
 Currently, it is used in combination with the BlackFreq acquisition FPGA controller. It sends a position-based trigger signal to the BlackFreq controller at the beginning of each new scanning line. In turn, the BlackFreq controller is responsible for the time-based acquisition of the signal from the 0D detectors, such as PMT and photo-diode.
 
-The functionality of the present tango device is based on SoftiMAX specific PandABox layout that is available in the current repo.
+The functionality of the present tango device is based on a SoftiMAX specific PandABox [layout](../config/panda_layout.png) that is called _pos_trig_stxm_ctrl_, which is also saved as a json file [here](../config/pos_trig_stxm_ctrl.json) and can be copied without any modification to the PandABox _/opt/share/designs/PANDA_ folder.
 
 ____________________________________________________________________________
 
