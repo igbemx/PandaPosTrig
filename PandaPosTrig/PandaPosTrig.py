@@ -82,6 +82,9 @@ class PandaPosTrig(Device):
     """
     # PROTECTED REGION ID(PandaPosTrig.class_variable) ENABLED START #
     def _get_panda_ctrl_socket(self):
+        """
+        Returns PandABox control socket.
+        """
         try:
             panda_ctrl_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             panda_ctrl_sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
@@ -89,9 +92,12 @@ class PandaPosTrig(Device):
             panda_ctrl_sock.connect((self.PandaHost, self.PandaPort))
             return panda_ctrl_sock
         except Exception as e:
-            print('Problem connecting to the PandaBox control port: ', e)
+            print('Problem connecting to the PandABox control port: ', e)
     
     def _get_panda_data_socket(self):
+        """
+        Returns PandABox data socket.
+        """
         try:
             panda_data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             panda_data_sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
@@ -101,7 +107,10 @@ class PandaPosTrig(Device):
         except Exception as e:
             print('Problem connecting to the PandaBox data port: ', e)
 
-    def _read_block_value(self, argin, ctrl_socket=None):
+    def _panda_block_write(self, argin, ctrl_socket=None):
+        """
+        Sends 'argin' value to the panda control soket and receives the output.
+        """
         try:
             if not ctrl_socket:
                 panda_ctrl_sock = self._get_panda_ctrl_socket()
@@ -109,7 +118,7 @@ class PandaPosTrig(Device):
                 panda_ctrl_sock = ctrl_socket
             panda_ctrl_sock.sendall(bytes(argin + '\n', 'ascii'))
             argout = panda_ctrl_sock.recv(4096).decode()
-            #log.debug(f'argout in _read_block_value is: {argout}')
+            #log.debug(f'argout in _panda_block_write is: {argout}')
             return argout
         except Exception as e:
             log.debug('A problem when sending a query to the PandaBox occured: {e}')
@@ -118,6 +127,9 @@ class PandaPosTrig(Device):
                 log.debug(f'Closing panda_ctrl_sock, {panda_ctrl_sock}')
 
     def _read_data_port(self, argin='', data_socket=None):
+        """
+        Receives the data socket output.
+        """
         try:
             if not data_socket:
                 panda_data_sock = self._get_panda_data_socket()
@@ -138,26 +150,39 @@ class PandaPosTrig(Device):
                 log.debug(f'Closing panda_data_sock, {panda_data_sock}')
 
     def _enable_panda_block(self, name, ctrl_socket):
-        resp = self._read_block_value(f'{name}.ENABLE=ONE', ctrl_socket=ctrl_socket)
+        """
+        Enables the selected panda block.
+        """
+        resp = self._panda_block_write(f'{name}.ENABLE=ONE', ctrl_socket=ctrl_socket)
         log.debug(f'{name}.ENABLE=ONE, resp: {resp}')
 
     def _disable_panda_block(self, name, ctrl_socket):
-        resp = self._read_block_value(f'{name}.ENABLE=ZERO', ctrl_socket=ctrl_socket)
+        """
+        Disables the selected panda block.
+        """
+        resp = self._panda_block_write(f'{name}.ENABLE=ZERO', ctrl_socket=ctrl_socket)
         log.debug(f'{name}.ENABLE=ZERO, resp: {resp}')
 
     def _arm_pos_capt(self, ctrl_socket):
-        resp = self._read_block_value(f'*PCAP.ARM=', ctrl_socket=ctrl_socket)
+        """
+        Armes the PCAP panda block.
+        """
+        resp = self._panda_block_write(f'*PCAP.ARM=', ctrl_socket=ctrl_socket)
         log.debug(f'*PCAP.ARM=, resp: {resp}')
 
     def _disarm_pos_capt(self, ctrl_socket):
-        resp = self._read_block_value(f'*PCAP.DISARM=', ctrl_socket=ctrl_socket)
+        """
+        Disarms the PCAP panda block.
+        """
+        resp = self._panda_block_write(f'*PCAP.DISARM=', ctrl_socket=ctrl_socket)
         log.debug(f'*PCAP.DISARM=, resp: {resp}')
 
     def _read_abs_pos(self, ctrl_socket):
+        """ Reads incremental encoder FPGA blocks directly via the control socket """
         try:
-            abs_x = self._read_block_value('INENC1.VAL?',
+            abs_x = self._panda_block_write('INENC1.VAL?',
                                                     ctrl_socket=ctrl_socket)
-            abs_y = self._read_block_value('INENC2.VAL?',
+            abs_y = self._panda_block_write('INENC2.VAL?',
                                                     ctrl_socket=ctrl_socket)
 
             _, abs_x = abs_x.split('=')
@@ -169,18 +194,18 @@ class PandaPosTrig(Device):
 
     def _sel_trig_axis(self, axis=TrigAxis.Y, ctrl_socket=None):
         """
-        Selects (enables) the right PCOMP module for triggering according to
+        Connects the right encoder input module to the PCOMP module for triggering according to
         the selected axis.
         """
         try:
             if axis == TrigAxis.X:
-                resp = self._read_block_value(
+                resp = self._panda_block_write(
                                                 'PCOMP1.INP=INENC1.VAL',
                                                 ctrl_socket=ctrl_socket
                                                 )
                 log.debug(f'PCOMP1.INP=INENC1.VAL, resp: {resp}')
             elif axis == TrigAxis.Y:
-                resp = self._read_block_value(
+                resp = self._panda_block_write(
                                                 'PCOMP1.INP=INENC2.VAL',
                                                 ctrl_socket=ctrl_socket
                                                 )
@@ -199,6 +224,9 @@ class PandaPosTrig(Device):
             log.debug(f'A problem in _arm_axis occured: {e}')
 
     def _det_time_pulse_switch(self, enable, ctrl_socket):
+        """
+        Switches the ENABLE/DISABLE state of the PULSE1 block.
+        """
         if enable:
             self._enable_panda_block('PULSE1', ctrl_socket=ctrl_socket)
         else:
@@ -235,7 +263,7 @@ class PandaPosTrig(Device):
             for parameter in send_parameters.items():
                 field_name, value = parameter
                 field = pcomp_name + '.' + field_name
-                resp = self._read_block_value(f'{field}={value}',
+                resp = self._panda_block_write(f'{field}={value}',
                                         ctrl_socket=ctrl_socket)
                 log.debug(f'The {field}={value} has been sent, response: {resp}')
         except Exception as e:
@@ -260,27 +288,27 @@ class PandaPosTrig(Device):
 
     def _set_time_pulse_block(self, ctrl_socket):
         # Setting the number of pulses
-        resp = self._read_block_value(f'PULSE1.PULSES={self.__det_time_pulse_n}', ctrl_socket=ctrl_socket)
+        resp = self._panda_block_write(f'PULSE1.PULSES={self.__det_time_pulse_n}', ctrl_socket=ctrl_socket)
         log.debug(f'PULSE1.PULSES={self.__det_time_pulse_n}, resp: {resp}')
         # Setting the pulse width in ms
-        resp = self._read_block_value(f'PULSE1.WIDTH={self.__det_time_pulse_width}', ctrl_socket=ctrl_socket)
+        resp = self._panda_block_write(f'PULSE1.WIDTH={self.__det_time_pulse_width}', ctrl_socket=ctrl_socket)
         log.debug(f'PULSE1.WIDTH={self.__det_time_pulse_width}, resp: {resp}')
         # Setting the pulse step in ms
-        resp = self._read_block_value(f'PULSE1.STEP={self.__det_time_pulse_step}', ctrl_socket=ctrl_socket)
+        resp = self._panda_block_write(f'PULSE1.STEP={self.__det_time_pulse_step}', ctrl_socket=ctrl_socket)
         log.debug(f'PULSE1.STEP={self.__det_time_pulse_step}, resp: {resp}')
 
     def _read_zerod_counters(self, ctrl_socket):
         try:
             resp_buff = None
-            resp_buff = self._read_block_value('PULSE2.TRIG=ONE',
+            resp_buff = self._panda_block_write('PULSE2.TRIG=ONE',
                                                     ctrl_socket=ctrl_socket)
             time.sleep(self.__det_dwell/1000)
-            resp_buff = self._read_block_value('PULSE2.TRIG=ZERO',
+            resp_buff = self._panda_block_write('PULSE2.TRIG=ZERO',
                                                     ctrl_socket=ctrl_socket)
 
-            counter5 = self._read_block_value('COUNTER5.OUT?',
+            counter5 = self._panda_block_write('COUNTER5.OUT?',
                                                     ctrl_socket=ctrl_socket)
-            counter6 = self._read_block_value('COUNTER6.OUT?',
+            counter6 = self._panda_block_write('COUNTER6.OUT?',
                                                     ctrl_socket=ctrl_socket)
 
             _, ret_PD = counter5.split('=')
@@ -329,7 +357,7 @@ class PandaPosTrig(Device):
 
     def _set_det_dwell(self, value, ctrl_socket):
         # Sets detector dwell in ms
-        resp = self._read_block_value(f'PULSE2.WIDTH={value}', ctrl_socket=ctrl_socket)
+        resp = self._panda_block_write(f'PULSE2.WIDTH={value}', ctrl_socket=ctrl_socket)
         log.debug(f'PULSE2.WIDTH={value}, resp: {resp}')
 
     def _panda_dataline_read(self, data_socket):
@@ -575,7 +603,7 @@ class PandaPosTrig(Device):
             self._set_det_dwell(self.__det_dwell, self.panda_ctrl_sock)
         except Exception as e:
             log.debug(f'Problem setting the initial detector dwell: {e}')
-        
+
         try:
             self.__det_time_pulses = False
             self._det_time_pulse_switch(self.__det_time_pulses, self.panda_ctrl_sock)
@@ -851,7 +879,7 @@ class PandaPosTrig(Device):
     def read_TrigState(self):
         # PROTECTED REGION ID(PandaPosTrig.TrigState_read) ENABLED START #
         """Return the TrigState attribute."""
-        resp = self._read_block_value(
+        resp = self._panda_block_write(
                                     'PCOMP1.STATE?',
                                     ctrl_socket=self.panda_ctrl_sock
                                     )
@@ -961,13 +989,13 @@ class PandaPosTrig(Device):
 
         :return:None
         """
-        resp = self._read_block_value(f'INENC1.RST_ON_Z=1', ctrl_socket=self.panda_ctrl_sock)
+        resp = self._panda_block_write(f'INENC1.RST_ON_Z=1', ctrl_socket=self.panda_ctrl_sock)
         log.debug(f'INENC1.RST_ON_Z=1, resp: {resp}')
-        resp = self._read_block_value(f'INENC2.RST_ON_Z=1', ctrl_socket=self.panda_ctrl_sock)
+        resp = self._panda_block_write(f'INENC2.RST_ON_Z=1', ctrl_socket=self.panda_ctrl_sock)
         log.debug(f'INENC2.RST_ON_Z=1, resp: {resp}')
-        resp = self._read_block_value(f'INENC1.RST_ON_Z=0', ctrl_socket=self.panda_ctrl_sock)
+        resp = self._panda_block_write(f'INENC1.RST_ON_Z=0', ctrl_socket=self.panda_ctrl_sock)
         log.debug(f'INENC1.RST_ON_Z=0, resp: {resp}')
-        resp = self._read_block_value(f'INENC2.RST_ON_Z=0', ctrl_socket=self.panda_ctrl_sock)
+        resp = self._panda_block_write(f'INENC2.RST_ON_Z=0', ctrl_socket=self.panda_ctrl_sock)
         log.debug(f'INENC2.RST_ON_Z=0, resp: {resp}')
         # PROTECTED REGION END #    //  PandaPosTrig.ZeroAbs
 
