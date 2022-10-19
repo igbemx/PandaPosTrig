@@ -58,6 +58,16 @@ The PandaPosTrig device exposes the following attributes:
 
 ____________________________________________________________________________
 
+##### Attributes used for time-based triggering
+
+The PandaPosTrig device exposes the following attributes:
+
+|   Attribute  |    Type   |  R/W | Unit | Purpose                                      |
+|:------------ |:----------|:---- |:---- |:-------------------------------------------- |
+| DetDwell     | DevDouble | R/W  | ms   | 0D detectors dwell time                      |
+
+____________________________________________________________________________
+
 ##### Commands
 
 The PandaPosTrig device exposes the following commands:
