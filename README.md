@@ -91,3 +91,22 @@ The PandaPosTrig device has the following states:
 | ---------------| -------------------------------------------------------------------------- |
 | ON             | The device is On and can be prepared for triggering                        |
 | FAULT          | The device has failed to execute the last command or communication is lost |
+
+____________________________________________________________________________
+
+##### Description of the FPGA blocks used in the layout
+
+| Block name      | Description                                                                       |
+| ----------------| ----------------------------------------------------------------------------------|
+| INENC1          | Y Position input from the Attocube interferometer A&B output                      |
+| INENC2          | X Position input from the Attocube interferometer A&B output                      |
+| OUTENC1, OUTENC2| Respective X and Y A&B outputs that go to the ACS position oscilloscope           |
+| PCOMP1          | Block that produces a position-based pulse to mark the beginning of a new line    |
+| PULSE1          | Triggers and gates position and 0D detecetors signals acquisition                 |
+| TTLIN5          | PMT signal input                                                                  |
+| TTLIN6          | Photodiode signal input                                                           |
+| TTLOUT9         | Output of the position-based trigger that goes to BlackFreq                       |
+| PULSE2          | Produces time-based pulses to trigger 0D det. acquisition for monitoring purposes |
+| CLOCK1          | Produces pulse with 1 µs period for precise internal time stamping                |
+| COUNTER1        | Measures the duration of the pulse produced by PULSE2 in µs                       |
+
