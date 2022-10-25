@@ -26,7 +26,7 @@ import enum
 import socket
 import time
 import threading
-from pyparsing import Word, Literal, nums
+from pyparsing import Word, Literal, nums, ParseException
 import logging as log
 log.basicConfig(level=log.DEBUG)
 
@@ -361,42 +361,43 @@ class PandaPosTrig(Device):
         log.debug(f'PULSE2.WIDTH={value}, resp: {resp}')
 
     def _panda_dataline_read(self, data_socket):
-        try:
-            self._read_data_port('NO_HEADER', data_socket)
-            panda_line_read_finished = False
-            log.debug('Inside _panda_dataline_read')
-            while not panda_line_read_finished:
-                repl = self._read_data_port(data_socket=data_socket)
-                repl = repl.strip()
-                print(repl)
-                resp = repl.strip().split('\n')
-                first_line, *second_line = resp
-                try:
-                    res = self.panda_line_repl.parseString(repl)
-                    print('Result is:', res)
-                except ValueError as val_err:
-                    print('Value conversion error during panda reply parsing: ', val_err)
-                except ParseException as pe:
-                    print('An error in async_panda_line_read(), cannot parse the input', pe)
+        while True:    
+            try:
+                self._read_data_port('NO_HEADER', data_socket)
+                panda_line_read_finished = False
+                log.debug('Inside _panda_dataline_read')
+                while not panda_line_read_finished:
+                    repl = self._read_data_port(data_socket=data_socket)
+                    repl = repl.strip()
+                    print(repl)
+                    resp = repl.strip().split('\n')
+                    first_line, *second_line = resp
+                    try:
+                        res = self.panda_line_repl.parseString(repl)
+                        print('Result is:', res)
+                    except ValueError as val_err:
+                        print('Value conversion error during panda reply parsing: ', val_err)
+                    except ParseException as pe:
+                        print('An error in async_panda_line_read(), cannot parse the input', pe)
 
-                if isinstance(res[0], int) and isinstance(res[5], int):
-                    log.debug('Data line received: ', res)
-                    # self._last_acq_x_array.append(res[0])
-                    # self._last_acq_y_array.append(res[1])
-                    # self._last_acq_delta_t_array.append(res[2])
-                    # self._last_acq_diode_array.append(res[3])
-                    # self._last_acq_pmt_array.append(res[4])
-                    # self._last_acq_ret_cnt_array.append(res[5])
-                elif res[0] == 'END':
-                        #self._number_of_acquired_points = int(first_line[1])
-                        log.debug('END message on the data port.')
-                        panda_line_read_finished = True
-                else:
-                    print('Not an array element: ', res)
-        except Exception as e:
-            log.debug('A problem within _panda_dataline_read(): ', e)
-        finally:
-            log.debug('Exiting the _panda_dataline_read()')
+                    if isinstance(res[0], int) and isinstance(res[5], int):
+                        log.debug('Data line received: ', res)
+                        # self._last_acq_x_array.append(res[0])
+                        # self._last_acq_y_array.append(res[1])
+                        # self._last_acq_delta_t_array.append(res[2])
+                        # self._last_acq_diode_array.append(res[3])
+                        # self._last_acq_pmt_array.append(res[4])
+                        # self._last_acq_ret_cnt_array.append(res[5])
+                    elif res[0] == 'END':
+                            #self._number_of_acquired_points = int(first_line[1])
+                            log.debug('END message on the data port.')
+                            panda_line_read_finished = True
+                    else:
+                        print('Not an array element: ', res)
+            except Exception as e:
+                log.debug('A problem within _panda_dataline_read(): ', e)
+            finally:
+                log.debug('Exiting the _panda_dataline_read()')
 
     def read_attr_hardware(self, data):
         """Method always executed to read the hardware."""
