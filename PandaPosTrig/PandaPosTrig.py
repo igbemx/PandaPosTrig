@@ -93,7 +93,7 @@ class PandaPosTrig(Device):
             return panda_ctrl_sock
         except Exception as e:
             print('Problem connecting to the PandABox control port: ', e)
-    
+
     def _get_panda_data_socket(self):
         """
         Returns PandABox data socket.
@@ -131,7 +131,7 @@ class PandaPosTrig(Device):
         Receives the data socket output.
         """
         try:
-            if not data_socket:
+            if data_socket is None:
                 panda_data_sock = self._get_panda_data_socket()
             else:
                 panda_data_sock = data_socket
@@ -318,8 +318,8 @@ class PandaPosTrig(Device):
         except Exception as e:
             log.debug(f'A problem in _read_zerod_counters ocuured: {e}')
 
-    def _zerod_det_read(self, ctrl_socket, trigger=None, ph_diode_var=None, pmt_var=None):
-        log.debug(f'Started _zerod_det_read thread')
+    def _read_zerod_det(self, ctrl_socket, trigger=None, ph_diode_var=None, pmt_var=None):
+        log.debug(f'Started _read_zerod_det thread')
         try:
             while True:
                 if self.__det_trig_src == DetTrigSrc.INTERNAL:
@@ -344,16 +344,15 @@ class PandaPosTrig(Device):
                                                         self.__det_trig_cntr,
                                                         self.__int_ph_diode,
                                                         self.__int_pmt))
-                        self.__det_trig_cntr += 1
                         trigger.state = False
                         log.debug(f'The EXT_SOFT triggered measurement took: {time.time()-start_time}s')
                     else:
                         continue
 
         except Exception as e:
-            log.debug(f'There is a problem in _zerod_det_read(): {e} ')
+            log.debug(f'There is a problem in _read_zerod_det(): {e} ')
         finally:
-            log.debug('Closing the _zerod_det_read thread..')
+            log.debug('Closing the _read_zerod_det thread..')
 
     def _set_det_dwell(self, value, ctrl_socket):
         # Sets detector dwell in ms
@@ -361,39 +360,42 @@ class PandaPosTrig(Device):
         log.debug(f'PULSE2.WIDTH={value}, resp: {resp}')
 
     def _panda_dataline_read(self, data_socket):
-        while True:    
+        while True:
             try:
-                self._read_data_port('NO_HEADER', data_socket)
-                panda_line_read_finished = False
+                new_data_line = True
                 log.debug('Inside _panda_dataline_read')
-                while not panda_line_read_finished:
-                    repl = self._read_data_port(data_socket=data_socket)
+                while True:
+                    repl = self._read_data_port('NO_HEADER', data_socket=data_socket)
                     repl = repl.strip()
-                    print(repl)
                     resp = repl.strip().split('\n')
-                    first_line, *second_line = resp
-                    try:
-                        res = self.panda_line_repl.parseString(repl)
-                        print('Result is:', res)
-                    except ValueError as val_err:
-                        print('Value conversion error during panda reply parsing: ', val_err)
-                    except ParseException as pe:
-                        print('An error in async_panda_line_read(), cannot parse the input', pe)
 
-                    if isinstance(res[0], int) and isinstance(res[5], int):
-                        log.debug('Data line received: ', res)
-                        # self._last_acq_x_array.append(res[0])
-                        # self._last_acq_y_array.append(res[1])
-                        # self._last_acq_delta_t_array.append(res[2])
-                        # self._last_acq_diode_array.append(res[3])
-                        # self._last_acq_pmt_array.append(res[4])
-                        # self._last_acq_ret_cnt_array.append(res[5])
-                    elif res[0] == 'END':
-                            #self._number_of_acquired_points = int(first_line[1])
+                    for line in resp:
+                        try:
+                            res = self.panda_line_repl.parseString(line)
+                            print(f'Result is: {res}, type is: {type(res)}')
+                        except ValueError as val_err:
+                            print('Value conversion error during panda reply parsing: ', val_err)
+                        except ParseException as pe:
+                            print('An error in async_panda_line_read(), cannot parse the input', pe)
+
+                        if isinstance(res[0], int) and isinstance(res[5], int):
+                            parsed_data_line = list(res)
+                            log.debug(f'New data line received: {parsed_data_line}')
+                            self._x_pos_out.append(parsed_data_line[0]/1000)
+                            self._y_pos_out.append(parsed_data_line[1]/1000)
+                            self.__dwell_out.append(parsed_data_line[2]/1000)
+                            self._pmt_out.append(parsed_data_line[3])
+                            self._p_diode_out.append(parsed_data_line[4])
+                            self.__point_n_out.append(parsed_data_line[5])
+                        elif res[0] == 'END':
                             log.debug('END message on the data port.')
-                            panda_line_read_finished = True
-                    else:
-                        print('Not an array element: ', res)
+                            new_data_line = False
+                        else:
+                            print('Not an array element: ', res)
+                    if new_data_line is False:
+                        log.debug('Braking the point loop.')
+                        self.__det_point_cntr = 0
+                        break
             except Exception as e:
                 log.debug('A problem within _panda_dataline_read(): ', e)
             finally:
@@ -446,13 +448,6 @@ class PandaPosTrig(Device):
         doc="Absolute sample X position",
     )
 
-    AbsY = attribute(
-        dtype='DevDouble',
-        access=AttrWriteType.READ_WRITE,
-        unit="microns",
-        doc="Absolute sample Y position",
-    )
-
     AbsXOffset = attribute(
         dtype='DevDouble',
         access=AttrWriteType.READ_WRITE,
@@ -460,35 +455,18 @@ class PandaPosTrig(Device):
         memorized=True,
     )
 
+    AbsY = attribute(
+        dtype='DevDouble',
+        access=AttrWriteType.READ_WRITE,
+        unit="microns",
+        doc="Absolute sample Y position",
+    )
+
     AbsYOffset = attribute(
         dtype='DevDouble',
         access=AttrWriteType.READ_WRITE,
         unit="microns",
         memorized=True,
-    )
-
-    TrigAxis = attribute(
-        dtype=TrigAxis,
-        access=AttrWriteType.READ_WRITE,
-        doc="Selection of triggerring axis",
-    )
-
-    TrigXPos = attribute(
-        dtype='DevDouble',
-        access=AttrWriteType.READ_WRITE,
-        unit="microns",
-        doc="Position for X axis triggerring",
-    )
-
-    TrigYPos = attribute(
-        dtype='DevDouble',
-        access=AttrWriteType.READ_WRITE,
-        unit="microns",
-        doc="Position for Y axis triggerring",
-    )
-
-    TrigState = attribute(
-        dtype='DevString',
     )
 
     DataPortBusy = attribute(
@@ -521,7 +499,7 @@ class PandaPosTrig(Device):
         access=AttrWriteType.READ_WRITE,
     )
 
-    DetTimePulses = attribute(
+    TimePulsesEnable = attribute(
         dtype='DevBoolean',
         access=AttrWriteType.READ_WRITE,
     )
@@ -549,9 +527,62 @@ class PandaPosTrig(Device):
         dtype='DevULong64',
     )
 
-    DetOut = attribute(
+    TrigAxis = attribute(
+        dtype=TrigAxis,
+        access=AttrWriteType.READ_WRITE,
+        doc="Selection of triggerring axis",
+    )
+
+    TrigXPos = attribute(
+        dtype='DevDouble',
+        access=AttrWriteType.READ_WRITE,
+        unit="microns",
+        doc="Position for X axis triggerring",
+    )
+
+    TrigYPos = attribute(
+        dtype='DevDouble',
+        access=AttrWriteType.READ_WRITE,
+        unit="microns",
+        doc="Position for Y axis triggerring",
+    )
+
+    TrigState = attribute(
+        dtype='DevString',
+    )
+
+    DetPointCntr = attribute(
+        dtype='DevLong64',
+    )
+
+    XPosOut = attribute(
+        dtype=('DevDouble',),
+        max_dim_x=1000,
+    )
+
+    YPosOut = attribute(
+        dtype=('DevDouble',),
+        max_dim_x=1000,
+    )
+
+    DwellOut = attribute(
+        dtype=('DevDouble',),
+        max_dim_x=1000,
+    )
+
+    PMTOut = attribute(
         dtype=('DevULong64',),
-        max_dim_x=3,
+        max_dim_x=1000,
+    )
+
+    PDiodeOut = attribute(
+        dtype=('DevULong64',),
+        max_dim_x=1000,
+    )
+
+    PointNOut = attribute(
+        dtype=('DevULong64',),
+        max_dim_x=1000,
     )
 
     # ---------------
@@ -561,7 +592,6 @@ class PandaPosTrig(Device):
     def init_device(self):
         """Initialises the attributes and properties of the PandaPosTrig."""
         Device.init_device(self)
-        self.set_change_event("DetOut", True, False)
         # PROTECTED REGION ID(PandaPosTrig.init_device) ENABLED START #
         self.__abs_x = 0
         self.__abs_y = 0
@@ -577,10 +607,20 @@ class PandaPosTrig(Device):
         self.__det_trig = SoftwareTrigger(False)
         self.__det_dwell = 10  # Detector dwell = 10 ms
         self.__det_trig_cntr = 0
+        self.__det_point_cntr = 0
         self.__det_time_pulse_n = 1
         self.__det_time_pulse_width = 1
         self.__det_time_pulse_step = 1
         self.__det_pos_capt = False
+
+        self._x_pos_out = []
+        self._y_pos_out = []
+        self.__dwell_out = []
+        self._pmt_out = []
+        self._p_diode_out = []
+        self.__point_n_out = []
+
+
 
         # Parsing expressions
 
@@ -606,13 +646,13 @@ class PandaPosTrig(Device):
             log.debug(f'Problem setting the initial detector dwell: {e}')
 
         try:
-            self.__det_time_pulses = False
-            self._det_time_pulse_switch(self.__det_time_pulses, self.panda_ctrl_sock)
+            self.__time_pulses_enable = False
+            self._det_time_pulse_switch(self.__time_pulses_enable, self.panda_ctrl_sock)
         except Exception as e:
             log.debug(f'Problem with the initialization of time-based block: {e}')
 
         try:
-            self.t_zerod_acq = threading.Thread(target=self._zerod_det_read,
+            self.t_zerod_acq = threading.Thread(target=self._read_zerod_det,
                                                 args=(self.panda_det_ctrl_sock,
                                                 self.__det_trig))
             self.t_zerod_acq.setDaemon(True)
@@ -715,6 +755,10 @@ class PandaPosTrig(Device):
         """Set the DetDwell attribute."""
         self.__det_dwell = value
         self._set_det_dwell(self.__det_dwell, self.panda_ctrl_sock)
+
+        # Syncronizing with the pulse generator step and width time, all in ms
+        self.write_DetTimePulseStep(value)
+        self.write_DetTimePulseWidth(value)
         # PROTECTED REGION END #    //  PandaPosTrig.DetDwell_write
 
     def read_DetPosCapt(self):
@@ -726,61 +770,116 @@ class PandaPosTrig(Device):
     def write_DetPosCapt(self, value):
         # PROTECTED REGION ID(PandaPosTrig.DetPosCapt_write) ENABLED START #
         """Set the DetPosCapt attribute."""
-        self.__det_pos_capt = value
         if self.__det_pos_capt:
             self._arm_pos_capt(ctrl_socket=self.panda_ctrl_sock)
         else:
             self._disarm_pos_capt(ctrl_socket=self.panda_ctrl_sock)
+
+        self.__det_pos_capt = value
         # PROTECTED REGION END #    //  PandaPosTrig.DetPosCapt_write
 
     def read_DetTimePulseN(self):
         # PROTECTED REGION ID(PandaPosTrig.DetTimePulseN_read) ENABLED START #
         """Return the DetTimePulseN attribute."""
-        return self.__det_time_pulse_n
+        try:
+            resp = self._panda_block_write('PULSE1.PULSES?',
+                                                    ctrl_socket=self.panda_ctrl_sock)
+            _, pulses_N = resp.split('=')
+            return int(pulses_N)
+        except Exception as e:
+            log.debug(f'A problem in read_DetTimePulseN occured: {e}') 
         # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulseN_read
 
     def write_DetTimePulseN(self, value):
         # PROTECTED REGION ID(PandaPosTrig.DetTimePulseN_write) ENABLED START #
         """Set the DetTimePulseN attribute."""
-        self.__det_time_pulse_n = value
+        try:
+            resp = self._panda_block_write(f'PULSE1.PULSES={value}', ctrl_socket=self.panda_ctrl_sock)
+            self.__det_time_pulse_n = value
+            log.debug(f'PULSE1.PULSES={value}, resp: {resp}')
+        except Exception as e:
+            log.debug(f'A problem in write_DetTimePulseN occured: {e}')
         # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulseN_write
 
     def read_DetTimePulseStep(self):
         # PROTECTED REGION ID(PandaPosTrig.DetTimePulseStep_read) ENABLED START #
         """Return the DetTimePulseStep attribute."""
-        return self.__det_time_pulse_step
+        try:
+            resp = self._panda_block_write('PULSE1.STEP?',
+                                                    ctrl_socket=self.panda_ctrl_sock)
+            _, det_time_pulse_step = resp.split('=')
+            return float(det_time_pulse_step)
+        except Exception as e:
+            log.debug(f'A problem in read_DetTimePulseStep occured: {e}')
         # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulseStep_read
 
     def write_DetTimePulseStep(self, value):
         # PROTECTED REGION ID(PandaPosTrig.DetTimePulseStep_write) ENABLED START #
         """Set the DetTimePulseStep attribute."""
-        self.__det_time_pulse_step = value
+        try:
+            resp = self._panda_block_write(f'PULSE1.STEP={value}', ctrl_socket=self.panda_ctrl_sock)
+            self.__det_time_pulse_step = value
+            log.debug(f'PULSE1.STEP={value}, resp: {resp}')
+        except Exception as e:
+            log.debug(f'A problem in write_DetTimePulseN occured: {e}')
         # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulseStep_write
 
     def read_DetTimePulseWidth(self):
         # PROTECTED REGION ID(PandaPosTrig.DetTimePulseWidth_read) ENABLED START #
         """Return the DetTimePulseWidth attribute."""
-        return self.__det_time_pulse_width
+        try:
+            resp = self._panda_block_write('PULSE1.WIDTH?',
+                                                    ctrl_socket=self.panda_ctrl_sock)
+            _, det_time_pulse_width = resp.split('=')
+            return float(det_time_pulse_width)
+        except Exception as e:
+            log.debug(f'A problem in read_DetTimePulseWidth occured: {e}')
         # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulseWidth_read
 
     def write_DetTimePulseWidth(self, value):
         # PROTECTED REGION ID(PandaPosTrig.DetTimePulseWidth_write) ENABLED START #
         """Set the DetTimePulseWidth attribute."""
-        self.__det_time_pulse_width = value
+        try:
+            resp = self._panda_block_write(f'PULSE1.WIDTH={value}', ctrl_socket=self.panda_ctrl_sock)
+            self.__det_time_pulse_width = value
+            log.debug(f'PULSE1.WIDTH={value}, resp: {resp}')
+        except Exception as e:
+            log.debug(f'A problem in write_DetTimePulseWidth occured: {e}')
         # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulseWidth_write
 
-    def read_DetTimePulses(self):
-        # PROTECTED REGION ID(PandaPosTrig.DetTimePulses_read) ENABLED START #
-        """Return the DetTimePulses attribute."""
-        return self.__det_time_pulses
-        # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulses_read
+    def read_TimePulsesEnable(self):
+        # PROTECTED REGION ID(PandaPosTrig.TimePulsesEnable_read) ENABLED START #
+        """Return the TimePulsesEnable attribute."""
+        try:
+            resp = self._panda_block_write('PULSE1.ENABLE?',
+                                                    ctrl_socket=self.panda_ctrl_sock)
+            _, time_pulses_enable = resp.split('=')
 
-    def write_DetTimePulses(self, value):
-        # PROTECTED REGION ID(PandaPosTrig.DetTimePulses_write) ENABLED START #
-        """Set the DetTimePulses attribute."""
-        self._det_time_pulse_switch(value, self.panda_ctrl_sock)
-        self.__det_time_pulses = value
-        # PROTECTED REGION END #    //  PandaPosTrig.DetTimePulses_write
+            if time_pulses_enable.strip() == 'ONE':
+                self.__time_pulses_enable = True
+                return self.__time_pulses_enable
+            elif time_pulses_enable.strip() == 'ZERO':
+                self.__time_pulses_enable = False
+                return self.__time_pulses_enable
+        except Exception as e:
+            log.debug(f'A problem in read_TimePulsesEnable occured: {e}')
+        # PROTECTED REGION END #    //  PandaPosTrig.TimePulsesEnable_read
+
+    def write_TimePulsesEnable(self, value):
+        # PROTECTED REGION ID(PandaPosTrig.TimePulsesEnable_write) ENABLED START #
+        """Set the TimePulsesEnable attribute."""
+        try:
+            if value is True:
+                resp = self._panda_block_write(f'PULSE1.ENABLE=ONE', ctrl_socket=self.panda_ctrl_sock)
+                log.debug(f'PULSE1.ENABLE=ONE, resp: {resp}')
+            else:
+                resp = self._panda_block_write(f'PULSE1.ENABLE=ZERO', ctrl_socket=self.panda_ctrl_sock)
+                log.debug(f'PULSE1.ENABLE=ZERO, resp: {resp}')
+            self.__time_pulses_enable = value
+
+        except Exception as e:
+            log.debug(f'A problem in write_TimePulsesEnable occured: {e}')
+        # PROTECTED REGION END #    //  PandaPosTrig.TimePulsesEnable_write
 
     def read_DetTrig(self):
         # PROTECTED REGION ID(PandaPosTrig.DetTrig_read) ENABLED START #
@@ -888,11 +987,54 @@ class PandaPosTrig(Device):
         return self.__trig_state
         # PROTECTED REGION END #    //  PandaPosTrig.TrigState_read
 
-    def read_DetOut(self):
-        # PROTECTED REGION ID(PandaPosTrig.DetOut_read) ENABLED START #
-        """Return the DetOut attribute."""
-        return self.__det_out
-        # PROTECTED REGION END #    //  PandaPosTrig.DetOut_read
+    def read_DetPointCntr(self):
+        # PROTECTED REGION ID(PandaPosTrig.DetPointCntr_read) ENABLED START #
+        """Return the DetPointCntr attribute."""
+        try:
+            resp = self._panda_block_write('COUNTER4.OUT?',
+                                                    ctrl_socket=self.panda_ctrl_sock)
+            _, det_point_cntr = resp.split('=')
+            self.__det_point_cntr = int(det_point_cntr)
+            return self.__det_point_cntr
+        except Exception as e:
+            log.debug(f'A problem in read_DetPointCntr occured: {e}')
+        # PROTECTED REGION END #    //  PandaPosTrig.DetPointCntr_read
+
+    def read_XPosOut(self):
+        # PROTECTED REGION ID(PandaPosTrig.XPosOut_read) ENABLED START #
+        """Return the XPosOut attribute."""
+        return self._x_pos_out
+        # PROTECTED REGION END #    //  PandaPosTrig.XPosOut_read
+
+    def read_YPosOut(self):
+        # PROTECTED REGION ID(PandaPosTrig.YPosOut_read) ENABLED START #
+        """Return the YPosOut attribute."""
+        return self._y_pos_out
+        # PROTECTED REGION END #    //  PandaPosTrig.YPosOut_read
+
+    def read_DwellOut(self):
+        # PROTECTED REGION ID(PandaPosTrig.DwellOut_read) ENABLED START #
+        """Return the DwellOut attribute."""
+        return self.__dwell_out
+        # PROTECTED REGION END #    //  PandaPosTrig.DwellOut_read
+
+    def read_PMTOut(self):
+        # PROTECTED REGION ID(PandaPosTrig.PMTOut_read) ENABLED START #
+        """Return the PMTOut attribute."""
+        return self._pmt_out
+        # PROTECTED REGION END #    //  PandaPosTrig.PMTOut_read
+
+    def read_PDiodeOut(self):
+        # PROTECTED REGION ID(PandaPosTrig.PDiodeOut_read) ENABLED START #
+        """Return the PDiodeOut attribute."""
+        return self._p_diode_out
+        # PROTECTED REGION END #    //  PandaPosTrig.PDiodeOut_read
+
+    def read_PointNOut(self):
+        # PROTECTED REGION ID(PandaPosTrig.PointNOut_read) ENABLED START #
+        """Return the PointNOut attribute."""
+        return self.__point_n_out
+        # PROTECTED REGION END #    //  PandaPosTrig.PointNOut_read
 
     # --------
     # Commands
@@ -914,6 +1056,7 @@ class PandaPosTrig(Device):
         elif self.__trig_axis == TrigAxis.Y:
             trig_pos = self.__trig_y_pos + self.__abs_y_offset
             axis_sign = self.AbsYSign
+        
         self._set_axis_trig(trig_pos,
                             axis=self.__trig_axis,
                             axis_sign=axis_sign,
@@ -922,6 +1065,15 @@ class PandaPosTrig(Device):
         self._arm_axis(ctrl_socket=self.panda_ctrl_sock)
         if self.get_state() not in [DevState.FAULT, ]:
             self.set_state(DevState.ON)
+        
+        self.__det_trig_cntr += 1
+        
+        self._x_pos_out = []
+        self._y_pos_out = []
+        self.__dwell_out = []
+        self._pmt_out = []
+        self._p_diode_out = []
+        self.__point_n_out = []
         # PROTECTED REGION END #    //  PandaPosTrig.ArmSingle
 
     def is_ArmSingle_allowed(self):
@@ -998,6 +1150,9 @@ class PandaPosTrig(Device):
         log.debug(f'INENC1.RST_ON_Z=0, resp: {resp}')
         resp = self._panda_block_write(f'INENC2.RST_ON_Z=0', ctrl_socket=self.panda_ctrl_sock)
         log.debug(f'INENC2.RST_ON_Z=0, resp: {resp}')
+
+        self.__abs_x_offset = 0
+        self.__abs_y_offset = 0
         # PROTECTED REGION END #    //  PandaPosTrig.ZeroAbs
 
     @command(
@@ -1012,6 +1167,38 @@ class PandaPosTrig(Device):
         """
         self._set_time_pulse_block(ctrl_socket=self.panda_ctrl_sock)
         # PROTECTED REGION END #    //  PandaPosTrig.SetDetTimePulseBlock
+
+    @command(
+    )
+    @DebugIt()
+    def ResetPointCntr(self):
+        # PROTECTED REGION ID(PandaPosTrig.ResetPointCntr) ENABLED START #
+        """
+        Resets point counter
+
+        :return:None
+        """
+        try:
+            self._disable_panda_block('COUNTER4', ctrl_socket=self.panda_ctrl_sock)
+            self._enable_panda_block('COUNTER4', ctrl_socket=self.panda_ctrl_sock)
+            self.__det_point_cntr = 0
+        except Exception as e:
+            log.debug(f'A problem in ResetPointCntr occured: {e}')
+        # PROTECTED REGION END #    //  PandaPosTrig.ResetPointCntr
+
+    @command(
+    )
+    @DebugIt()
+    def ResetTrigCntr(self):
+        # PROTECTED REGION ID(PandaPosTrig.ResetTrigCntr) ENABLED START #
+        """
+            Resets trigger counter, counts the number of times ArmSingle is called,
+            supposed to be equivalent to the number of lines acquired
+
+        :return:None
+        """
+        self.__det_trig_cntr = 0
+        # PROTECTED REGION END #    //  PandaPosTrig.ResetTrigCntr
 
 # ----------
 # Run server
