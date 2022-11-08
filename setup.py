@@ -9,7 +9,7 @@ setup(
     setup_requires=["setuptools_scm"],
     description="Panda position based triggering for STXM FPGA.",
     url="https://gitlab.maxiv.lu.se/softimax/tangods-softimax-pandapostrig",
-    packages=find_packages(exclude=["tests", "*.tests.*", "tests.*", "tests"]),
+    packages=find_packages(exclude=["tests", "*.tests.*", "tests.*", "scripts"]),
     include_package_data=True,
     entry_points={"console_scripts": ["PandaPosTrig = PandaPosTrig.PandaPosTrig:main",]},
 )
