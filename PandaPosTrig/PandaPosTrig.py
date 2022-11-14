@@ -620,10 +620,7 @@ class PandaPosTrig(Device):
         self._p_diode_out = []
         self.__point_n_out = []
 
-
-
         # Parsing expressions
-
         num_value = Word(nums+'-').setParseAction(lambda val: int(val[0]))
         panda_OK_reply = Literal('OK')
         panda_END_reply = Literal('END')
@@ -770,12 +767,13 @@ class PandaPosTrig(Device):
     def write_DetPosCapt(self, value):
         # PROTECTED REGION ID(PandaPosTrig.DetPosCapt_write) ENABLED START #
         """Set the DetPosCapt attribute."""
-        if self.__det_pos_capt:
+        self.__det_pos_capt = value
+        if value:
             self._arm_pos_capt(ctrl_socket=self.panda_ctrl_sock)
         else:
             self._disarm_pos_capt(ctrl_socket=self.panda_ctrl_sock)
 
-        self.__det_pos_capt = value
+        
         # PROTECTED REGION END #    //  PandaPosTrig.DetPosCapt_write
 
     def read_DetTimePulseN(self):
