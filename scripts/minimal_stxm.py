@@ -19,12 +19,13 @@ def do_x_line(start=0, end=10, N=100, exptime=.009, latency=.001):
     panda.DetTimePulseWidth = 1e3 * exptime
     panda.DetTimePulseN = N
     panda.TimePulsesEnable = True
+    # panda.DetPosCapt = True
     panda.ArmSingle()
 
     # go to the starting positoin
     pi_x.Velocity = FAST
     pi_x.Position = start - MARGIN
-    print('Going to X = -1.0 ')
+    print('Going to X = %f ' % (start - MARGIN))
     while not pi_x.OnTarget:
         time.sleep(SLEEP)
     print('...there!')
@@ -40,9 +41,11 @@ def do_x_line(start=0, end=10, N=100, exptime=.009, latency=.001):
 
 def do_stxm(x_start, x_end, y_start, y_end, Nx, Ny, exptime, latency,
             filename='/tmp/data.h5'):
+    panda.DetPosCapt = True
     with h5py.File(filename, 'w') as fp:
         # create datasets for later
         shape = (Ny + 1, Nx)
+        print('dataset shape', shape)
         x_dset = fp.create_dataset('x', shape=shape)
         y_dset = fp.create_dataset('y', shape=shape)
         pmt_dset = fp.create_dataset('pmt', shape=shape)
@@ -51,8 +54,10 @@ def do_stxm(x_start, x_end, y_start, y_end, Nx, Ny, exptime, latency,
         for y_i, y_val in enumerate(np.linspace(y_start, y_end, Ny + 1)):
             pi_y.Position = y_val
             do_x_line(x_start, x_end, Nx, exptime, latency)
-            x_dset[y_i, :] = panda.XPosOut
-            y_dset[y_i, :] = panda.YPosOut
-            pmt_dset[y_i, :] = panda.PMTOut
-            diode_dset[y_i, :] = panda.PDiodeOut
+            print('    data shapes', panda.XPosOut.shape, panda.YPosOut.shape, panda.PMTOut.shape, panda.PDiodeOut.shape)
+            x_dset[y_i, :] = panda.XPosOut[:Nx]  # needed for now, something weird with panda
+            y_dset[y_i, :] = panda.YPosOut[:Nx]
+            pmt_dset[y_i, :] = panda.PMTOut[:Nx]
+            diode_dset[y_i, :] = panda.PDiodeOut[:Nx]
             fp.flush()
+    panda.DetPosCapt = False
