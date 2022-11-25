@@ -647,7 +647,7 @@ class PandaPosTrig(Device):
             self._det_time_pulse_switch(self.__time_pulses_enable, self.panda_ctrl_sock)
         except Exception as e:
             log.debug(f'Problem with the initialization of time-based block: {e}')
-
+        # Reading PMT and photodiode via a separate channel, used only for display purposes
         try:
             self.t_zerod_acq = threading.Thread(target=self._read_zerod_det,
                                                 args=(self.panda_det_ctrl_sock,
@@ -656,7 +656,7 @@ class PandaPosTrig(Device):
             self.t_zerod_acq.start()
         except Exception as e:
             print(e)
-
+        # Data port reading thread 
         try:
             self.t_data_acq = threading.Thread(
                                             target=self._panda_dataline_read,
@@ -1088,7 +1088,10 @@ class PandaPosTrig(Device):
 
         :return:None
         """
-        pass
+        try:
+            self._disable_panda_block('PCOMP1', ctrl_socket=self.panda_ctrl_sock)
+        except Exception as e:
+            log.debug(f'A problem in Disarm PCOMP1 occured: {e}')
         # PROTECTED REGION END #    //  PandaPosTrig.Disarm
 
     @command(
