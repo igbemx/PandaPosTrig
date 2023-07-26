@@ -1,6 +1,3 @@
 include:
-    - project: 'kits-maxiv/cfg-maxiv-gitlabci'
-      file: '/.python-ci.yml'
-
-variables:
-    PACKAGE_NAME: 'tangods-pandapostrig'
+  - project: 'kits-maxiv/cfg-maxiv-gitlabci'
+    file: '/.python-ci.yml'
