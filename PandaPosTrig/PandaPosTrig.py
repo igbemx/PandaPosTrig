@@ -28,7 +28,7 @@ import time
 import threading
 from pyparsing import Word, Literal, nums, ParseException
 import logging as log
-log.basicConfig(level=log.DEBUG)
+log.basicConfig(level=log.INFO)
 
 
 class SoftwareTrigger(object):
