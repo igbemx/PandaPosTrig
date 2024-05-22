@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of the PandaPosTrig project
-#
+# Author: Igor Beinik
 #
 #
 # Distributed under the terms of the GPL license.
